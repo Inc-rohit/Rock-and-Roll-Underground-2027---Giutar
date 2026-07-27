@@ -1,0 +1,156 @@
+/* Injects Tailwind's base styles (resets, Normalize.css) */
+@tailwind base;
+
+/* Injects any custom or built-in component styles */
+@tailwind components;
+
+/* Injects all utility classes (e.g., p-4, text-center) */
+@tailwind utilities;
+
+/* Lenis smooth-scroll (only active on pages that mount <SmoothScroll>) */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* Audience scroll section — stack the panels vertically for reduced motion
+   (no pin/scrub), so all the copy stays readable. */
+.audience-section.reduce-stack {
+  height: auto;
+}
+.audience-section.reduce-stack .audience-panel {
+  position: relative;
+  opacity: 1 !important;
+  visibility: visible !important;
+  min-height: 100vh;
+}
+
+/* Hero headline ripple — light concentric pulses expanding from behind the text */
+.hero-ring {
+  position: absolute;
+  height: 46vmin;
+  width: 46vmin;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 240, 214, 0.2);
+  opacity: 0;
+  animation: hero-ripple 4.5s ease-out infinite;
+}
+.hero-ring:nth-child(2) {
+  animation-delay: 1.5s;
+}
+.hero-ring:nth-child(3) {
+  animation-delay: 3s;
+}
+@keyframes hero-ripple {
+  0% {
+    transform: scale(0.45);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.42;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-ring {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* Bass visualizer — the red "subwoofer" glow behind the headline pumps to the
+   live low-frequency energy of the track. AudioPlayer publishes `--bass` (0..1)
+   on <html> every frame; the glow scales, brightens and fades with it, so it
+   physically thumps to the music's bass. Turn sound on (top-right) to hear +
+   see it react. `--bass` idles at a gentle breath when sound is off. */
+.hero-bass {
+  transform: translate(-50%, -50%) scale(calc(1 + var(--bass, 0.1) * 0.5));
+  opacity: calc(0.26 + var(--bass, 0.1) * 0.6);
+  filter: brightness(calc(1 + var(--bass, 0) * 0.7));
+  will-change: transform, opacity, filter;
+}
+/* The ripple gets a small bass-driven push too, so the rings feel kicked out
+   on each beat. */
+.hero-ripple {
+  transform: scale(calc(1 + var(--bass, 0) * 0.14));
+}
+
+/* Musician silhouettes — a gold gradient that flows vertically INSIDE each
+   figure (the div is masked to the silhouette), so the band reads as glowing,
+   living forms instead of flat black cut-outs. */
+.musician-fill-inner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 300%;
+  background: linear-gradient(
+    155deg,
+    #060000 0%,
+    #060000 24%,
+    #5a0a0a 30%,
+    #e0201a 34%,
+    #5a0a0a 38%,
+    #060000 44%,
+    #060000 80%,
+    #5a0a0a 85%,
+    #ff2a1a 89%,
+    #5a0a0a 93%,
+    #060000 100%
+  );
+  will-change: transform;
+  animation: musician-flow 5.5s ease-in-out infinite;
+}
+/* Composited flow — translate the tall gradient layer (no repaint) so the red
+   sweeps vertically through the masked silhouette. */
+@keyframes musician-flow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -66.6%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .musician-fill-inner {
+    animation: none;
+    transform: translate3d(0, -33%, 0);
+  }
+}
+
+/* Scroll-to-explore prompt — a bouncing double chevron so first-time visitors
+   immediately see the page is a long scroll experience. */
+.scroll-hint-arrow {
+  display: block;
+  animation: scroll-hint-bounce 1.5s ease-in-out infinite;
+}
+@keyframes scroll-hint-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(9px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint-arrow {
+    animation: none;
+  }
+}
