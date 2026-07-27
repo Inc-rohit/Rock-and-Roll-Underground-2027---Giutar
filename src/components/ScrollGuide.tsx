@@ -11,7 +11,10 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
  *      "About" and "Sponsor Benefits" are two points WITHIN the pinned audience
  *      section: its start (the 16th-Annual / about copy) and its 2-cans finale
  *      near the end. Clicking a dot smooth-scrolls there; the current one is gold.
- *   2. a "Scroll to explore" prompt on the first screen that fades once scrolling.
+ *   2. a "Scroll to explore" prompt that appears where the intro auto-scroll
+ *      PARKS (the hero end / hand-off to the details) to cue the visitor to
+ *      scroll on, then fades once they've scrolled into the details. (Reduced
+ *      motion has no auto-scroll → the prompt stays as the top-of-page cue.)
  */
 const getLenis = () => (window as unknown as { __lenis?: Lenis }).__lenis;
 const getScroll = () => getLenis()?.scroll ?? window.scrollY;
@@ -23,6 +26,10 @@ const scrollTopOf = (sel: string): number | null => {
 };
 const audienceST = () =>
     ScrollTrigger.getAll().find((st) => st.trigger === document.querySelector(".audience-section"));
+// The concert-hero pinned trigger — its `end` is exactly where the intro
+// auto-scroll parks (band line-up / hand-off to the details).
+const heroST = () =>
+    ScrollTrigger.getAll().find((st) => st.trigger === document.querySelector(".concert-hero"));
 // A position inside the audience section's pinned scroll range (0 = start,
 // 1 = end). Falls back to the section top before the trigger is built.
 const audiencePos = (frac: number): number | null => {
@@ -44,13 +51,32 @@ export default function ScrollGuide() {
     const [active, setActive] = useState(0);
 
     useEffect(() => {
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         let raf = 0;
         let pending = false;
         const apply = () => {
             pending = false;
             const scroll = getScroll();
-            if (hintRef.current)
-                hintRef.current.style.opacity = scroll > window.innerHeight * 0.45 ? "0" : "1";
+            // "Scroll to explore": with the intro auto-scroll running, show it where
+            // the auto-scroll PARKS — the hero end (band line-up / hand-off to the
+            // details) — not at the top. Hidden during the auto-scroll itself and
+            // once the visitor scrolls on into the details. Reduced-motion has no
+            // auto-scroll, so it keeps the original top-of-page cue.
+            if (hintRef.current) {
+                const ih = window.innerHeight;
+                if (reduce) {
+                    hintRef.current.style.opacity = scroll < ih * 0.45 ? "1" : "0";
+                } else {
+                    const st = heroST();
+                    // `st.end` is 0 until ScrollTrigger positions the pin; ignore
+                    // that stale value (it would spuriously match at scroll 0 and
+                    // flash the prompt at the top) and wait for the real end.
+                    const heroEnd = st && st.end > ih ? st.end : null;
+                    const atHandoff =
+                        heroEnd != null && scroll > heroEnd - ih * 0.35 && scroll < heroEnd + ih * 0.5;
+                    hintRef.current.style.opacity = atHandoff ? "1" : "0";
+                }
+            }
             // active = the last dot whose target we've reached (within ~0.4 screen).
             const offset = window.innerHeight * 0.4;
             let idx = 0;
@@ -140,7 +166,7 @@ export default function ScrollGuide() {
             <div
                 ref={hintRef}
                 aria-hidden="true"
-                className="scroll-hint pointer-events-none fixed inset-x-0 bottom-6 z-[130] flex flex-col items-center gap-2 opacity-100 transition-opacity duration-500"
+                className="scroll-hint pointer-events-none fixed inset-x-0 bottom-6 z-[130] flex flex-col items-center gap-2 opacity-0 transition-opacity duration-500"
             >
                 <span className="[font-family:var(--font-bebas)] text-base uppercase tracking-[0.42em] text-[#f4c020] [text-shadow:0_2px_12px_rgba(0,0,0,0.95)]">
                     Scroll to explore

@@ -1,13 +1,13 @@
 /**
- * Layer 1 — the stage as a SCROLL-SCRUBBED video.
- * The video never autoplays; ConcertHero ties its `currentTime` to scroll
- * progress, so the lights sweep and smoke billows as the user scrolls.
- * `Main stage.png` is the poster (shown before the video is ready / on
- * reduced-motion). Only transform is applied to the wrapper; the video's own
- * frames provide the motion, so the old CSS haze/glow layers are gone.
+ * Layer 1 — the stage as a CONTINUOUSLY PLAYING (autoplay + loop) video, so the
+ * lights sweep and smoke billows on their own — the background never freezes,
+ * even when the intro auto-scroll pauses on a page. (It used to be scrubbed by
+ * scroll, which froze on one frame whenever scrolling stopped = "stuck" look.)
+ * `main-stage.png` is the poster (shown before the video is ready / on
+ * reduced-motion, where ConcertHero pauses the video).
  *
- *   .stage-scroll — scroll-linked push (scale)
- *   .stage-video  — the scrubbed video element
+ *   .stage-scroll — subtle scroll-linked push (scale)
+ *   .stage-video  — the looping stage video
  *   .film-grain   — static filmic grain
  */
 export default function StageBackground() {
@@ -16,6 +16,8 @@ export default function StageBackground() {
             <div className="stage-scroll absolute inset-0 origin-center will-change-transform">
                 <video
                     className="stage-video absolute inset-0 h-full w-full scale-[1.08] object-cover object-center"
+                    autoPlay
+                    loop
                     muted
                     playsInline
                     preload="auto"

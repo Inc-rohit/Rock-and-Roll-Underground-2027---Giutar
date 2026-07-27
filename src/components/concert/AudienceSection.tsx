@@ -417,15 +417,30 @@ export default function AudienceSection() {
                                     {SHOTS.map((s, i) => (
                                         <div
                                             key={i}
-                                            className={`aud-shot absolute ${s.pos}`}
+                                            // will-change-transform promotes each photo to its own
+                                            // compositor layer so the burst (scale/x/y/rotation)
+                                            // animates without repainting the image each frame.
+                                            className={`aud-shot absolute will-change-transform ${s.pos}`}
                                             style={{ transform: `rotate(${s.rot}deg)` }}
                                         >
-                                            <div className="overflow-hidden rounded-md border border-white/20 bg-white/[0.06] p-1.5 shadow-[0_14px_44px_rgba(0,0,0,0.6)] backdrop-blur-[2px]">
+                                            {/* NB: no backdrop-blur here — a per-frame backdrop
+                                                filter on all 8 frames WHILE they animate was the
+                                                main scroll-freeze; the frames read fine without it. */}
+                                            <div className="overflow-hidden rounded-md border border-white/20 bg-white/[0.06] p-1.5 shadow-[0_14px_44px_rgba(0,0,0,0.6)]">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
                                                     src={`/stage/${i + 1}.jpg`}
                                                     alt=""
-                                                    loading="lazy"
+                                                    width={288}
+                                                    height={192}
+                                                    // eager + async decode + low priority: the 8
+                                                    // (now small ~150KB) photos load in the
+                                                    // background at page start, so they're decoded
+                                                    // and ready before the visitor scrolls in —
+                                                    // no lazy pop-in mid-scroll.
+                                                    loading="eager"
+                                                    decoding="async"
+                                                    fetchPriority="low"
                                                     className={`${s.size} rounded-sm object-cover`}
                                                 />
                                             </div>

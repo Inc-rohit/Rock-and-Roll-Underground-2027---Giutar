@@ -46,7 +46,7 @@ const BENEFITS: Block[] = [
             "Dedicated VIP section for Execs in the upper tier of venue",
             "Inclusion of company executives in giveaways and addresses from the stage.",
             "Official Drink of the Show with Distribution of Product and inclusion in marquis cocktail",
-            "Up to Twenty (25) sponsor executives can attend",
+            "Up to Twenty-five (25) attendees",
             {
                 text: "Management of:",
                 sub: ["Social channels + show social media", "Giveaways"],
@@ -99,7 +99,7 @@ const TITLE_EXPERIENCE: Block = {
             ],
         },
         "Inclusion of company executives in giveaways and addresses from the stage.",
-        "Up to Twenty (25) sponsor executives can attend",
+        "Up to Twenty-five (25) attendees",
     ],
 };
 

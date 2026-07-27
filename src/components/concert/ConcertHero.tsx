@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
+import type Lenis from "lenis";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -29,6 +30,9 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
  */
 export default function ConcertHero() {
     const hero = useRef<HTMLElement>(null);
+    // Populated by the pinned timeline below; read by the intro auto-scroll.
+    const heroTlRef = useRef<gsap.core.Timeline | null>(null);
+    const heroStopsRef = useRef<number[]>([]);
 
     useGSAP(
         () => {
@@ -51,6 +55,8 @@ export default function ConcertHero() {
                 gsap.set(panels[3], { autoAlpha: 1, yPercent: -34, scale: 0.62 }); // logo header
                 gsap.set(".crowd-layer", { autoAlpha: 1, yPercent: 0 });
                 sil.forEach((s, i) => gsap.set(s, { xPercent: -50, x: fx[i], y: 0, autoAlpha: 1 }));
+                // Reduced motion: don't play the smoke video — show the poster.
+                el.querySelector<HTMLVideoElement>(".stage-video")?.pause();
                 return;
             }
 
@@ -152,24 +158,25 @@ export default function ConcertHero() {
                 },
             });
 
-            // A full-screen "big text" beat: enter from below → hold → up & fade.
-            const beat = (panel: HTMLElement) => {
-                tl.fromTo(panel, { autoAlpha: 0, yPercent: 12 }, { autoAlpha: 1, yPercent: 0, duration: 1 });
-                tl.to(panel, { duration: 0.5 });
-                tl.to(panel, { autoAlpha: 0, yPercent: -12, duration: 1, ease: "power2.in" });
-            };
+            // Intro auto-scroll "stops": the timeline-time where each opening
+            // page is fully shown. The auto-scroll (below) advances through these.
+            const autoStops: number[] = [];
 
-            // 1) Logo — already on screen → hold → up & fade
+            // 1) Logo — already on screen (the on-load page) → hold → up & fade
             tl.to(panels[0], { duration: 0.5 });
             tl.to(panels[0], { autoAlpha: 0, yPercent: -12, duration: 1, ease: "power2.in" });
 
             // 2) Date & time on one screen
-            beat(panels[1]);
+            tl.fromTo(panels[1], { autoAlpha: 0, yPercent: 12 }, { autoAlpha: 1, yPercent: 0, duration: 1 });
+            autoStops.push(tl.duration()); // date fully shown
+            tl.to(panels[1], { duration: 0.5 });
+            tl.to(panels[1], { autoAlpha: 0, yPercent: -12, duration: 1, ease: "power2.in" });
 
             // 3) Venue + address — the crowd rises in WITH it, then the text lifts
             //    away while the crowd stays for the band finale.
             tl.fromTo(panels[2], { autoAlpha: 0, yPercent: 12 }, { autoAlpha: 1, yPercent: 0, duration: 1 });
             tl.to(".crowd-layer", { autoAlpha: 1, yPercent: 0, duration: 1.2, ease: "power2.out" }, "<");
+            autoStops.push(tl.duration()); // venue fully shown
             tl.to(panels[2], { duration: 0.6 });
             tl.to(panels[2], { autoAlpha: 0, yPercent: -12, duration: 1, ease: "power2.in" });
 
@@ -183,34 +190,18 @@ export default function ConcertHero() {
             //    the logo has finished moving up.
             tl.to(sil, { autoAlpha: 1, y: 0, duration: 1.0, ease: "power2.out", stagger: 0.05 });
             tl.to({}, { duration: 0.6 }); // hold the finished line-up
+            autoStops.push(tl.duration()); // band line-up shown (end of the intro)
 
-            // --- Scroll-scrubbed stage video + subtle push ---
-            // Driven from the SAME pinned timeline (one ScrollTrigger) so it stays
-            // in sync with the pin spacer. Spanning tweens are added at position 0
-            // for the timeline's full duration. The video's playback follows scroll:
-            // scrolling forward sweeps the lights/smoke; scrolling back rewinds it.
+            // Expose the timeline + stops to the auto-scroll effect below.
+            heroTlRef.current = tl;
+            heroStopsRef.current = autoStops;
+
+            // The stage smoke/lights video now plays CONTINUOUSLY (autoplay + loop
+            // in StageBackground) rather than being scrubbed by scroll — so the
+            // background stays ALIVE even when the intro auto-scroll pauses on a
+            // page. (A scroll-scrubbed video freezes on one frame when scroll
+            // stops, which read as "stuck".)
             const total = tl.duration() || 1;
-            const video = el.querySelector<HTMLVideoElement>(".stage-video");
-            if (video) {
-                video.pause();
-                // Animate a proxy value and seek in onUpdate — setting currentTime
-                // directly via gsap.to(video, …) is swallowed by the CSS plugin.
-                const state = { t: 0 };
-                tl.to(
-                    state,
-                    {
-                        t: 9.9, // ~full 10s clip across the pinned scroll
-                        duration: total,
-                        ease: "none",
-                        onUpdate: () => {
-                            // Only seek once the previous seek finished so rapid
-                            // scroll doesn't pile up seeks and stutter.
-                            if (video.readyState >= 2 && !video.seeking) video.currentTime = state.t;
-                        },
-                    },
-                    0,
-                );
-            }
 
             // Subtle scroll-linked push for depth (no rotation, no edge reveal).
             tl.fromTo(".stage-scroll", { scale: 1.04 }, { scale: 1.09, duration: total, ease: "none" }, 0);
@@ -269,6 +260,57 @@ export default function ConcertHero() {
         },
         { scope: hero },
     );
+
+    // Intro AUTO-SCROLL: on load, play through the opening pages by itself
+    // (~2.5s each), then hand off to manual scroll for the event details /
+    // sponsorship below. Yields the instant the visitor scrolls/swipes/keys;
+    // disabled for reduced-motion.
+    useEffect(() => {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        const tl = heroTlRef.current;
+        const stops = heroStopsRef.current;
+        if (!tl || stops.length === 0) return;
+
+        const events = ["wheel", "touchstart", "keydown"];
+        let cancelled = false;
+        let timer: ReturnType<typeof setTimeout>;
+        const cancel = () => {
+            if (cancelled) return;
+            cancelled = true;
+            clearTimeout(timer);
+            events.forEach((e) => window.removeEventListener(e, cancel));
+        };
+        events.forEach((e) => window.addEventListener(e, cancel, { passive: true }));
+
+        let idx = 0;
+        const advance = () => {
+            if (cancelled || idx >= stops.length) {
+                cancel();
+                return;
+            }
+            const st = tl.scrollTrigger;
+            const dur = tl.duration();
+            if (st && dur) {
+                const y = st.start + (stops[idx] / dur) * (st.end - st.start);
+                const lenis = (window as unknown as { __lenis?: Lenis }).__lenis;
+                // Long, ease-in-out glide so the auto-advance feels smooth, not snappy.
+                const easeInOut = (t: number) =>
+                    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                if (lenis) lenis.scrollTo(y, { duration: 1.6, easing: easeInOut });
+                else window.scrollTo({ top: y, behavior: "smooth" });
+            }
+            idx++;
+            timer = setTimeout(advance, 2500);
+        };
+        // Hold the headline ~2.5s, then start auto-advancing.
+        timer = setTimeout(advance, 1500);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+            events.forEach((e) => window.removeEventListener(e, cancel));
+        };
+    }, []);
 
     const bigBase =
         "[font-family:var(--font-bebas)] uppercase leading-[0.92] tracking-[0.02em] text-balance text-[clamp(3rem,10vw,8rem)]";
