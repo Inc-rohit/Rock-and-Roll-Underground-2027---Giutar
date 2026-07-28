@@ -28,10 +28,16 @@ export const audCan = {
     b: { x: -1.6, y: 0, z: 0, rotZ: 0, scale: 0 },
 };
 
+// Slight backward lean so the guitar STANDS at ~80° (not stiff-vertical),
+// applied on the OUTER group. Because the axis-spin lives on the inner group
+// (around the guitar's long axis), the long axis stays fixed at this lean while
+// the face rolls around — a clean "guitar on a rotating stand" look, no wobble.
+const LEAN_X = -0.2; // ≈ 11.5° back-lean → ~78–80° upright
+
 function apply(g: Group | null, s: { x: number; y: number; z: number; rotZ: number; scale: number }) {
     if (!g) return;
     g.position.set(s.x, s.y, s.z);
-    g.rotation.z = 0; // guitars stand straight — ignore the can-era z-tilt
+    g.rotation.set(LEAN_X, 0, 0); // stand at ~80° (slight back-lean), no z-tilt
     g.scale.setScalar(s.scale);
     g.visible = s.scale > 0.001;
 }

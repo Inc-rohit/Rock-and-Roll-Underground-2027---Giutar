@@ -142,8 +142,9 @@ export default function Scene({ sentence, flavor }: SkyDiveProps) {
 
     return (
         <group ref={groupRef}>
-            {/* Guitar — upright (no tilt); it spins around its own vertical axis */}
-            <group rotation={[0, 0, 0]}>
+            {/* Guitar stands at ~80° (slight back-lean on this outer group) and
+                spins around its own axis via canRef inside → fixed lean, no wobble */}
+            <group rotation={[-0.2, 0, 0]}>
                 <FloatingCan
                     ref={canRef}
                     flavor={flavor}
