@@ -3,30 +3,24 @@
 import { useGLTF } from "@react-three/drei";
 import { useMemo } from "react";
 import * as THREE from "three";
-import { mergeVertices, toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 const MODEL = "/electric-guitar.glb";
 // The model is normalized to this height (world units) inside the component, so
 // the scene-level scales stay valid no matter what the source GLB's native size
 // is. 2.5 matches the height the scenes were originally tuned around.
 const TARGET_HEIGHT = 2.5;
-// Normals smoother than this angle are averaged (round the neck / curves);
-// sharper edges (body outline, headstock) stay crisp.
-const CREASE_ANGLE = (60 * Math.PI) / 180;
+// This model's long axis is Z (it ships lying down), so rotate it upright
+// (Z → Y) with the NECK pointing up before normalizing.
+const BASE_ROTATION: [number, number, number] = [Math.PI / 2, 0, 0];
 
 useGLTF.preload(MODEL);
 
 /**
- * Prepare the source scene ONCE (cached across every instance): weld coincident
- * vertices and recompute CREASED normals so the model shades smoothly on its
- * curved surfaces instead of showing hard facets, and give it a glossier PBR
- * material so it catches the stage HDR like real lacquered wood/metal.
- *
- * NB: we deliberately do NOT geometrically subdivide this model — its mesh is
- * non-manifold, multi-primitive low-poly, which Loop subdivision can't process
- * (it either empties or shreds the geometry). Smoothing here is shading/material
- * only; a genuinely high-poly look needs a higher-detail source GLB (drop one in
- * public/ and it's a one-line swap — the normalization below handles any size).
+ * Prepare the source scene ONCE (cached across every instance): just disable
+ * shadows. This is a high-poly model with authored PBR textures (baseColor /
+ * normal / metallicRoughness + KHR_materials_specular), so it's rendered
+ * AS-AUTHORED — no vertex welding, normal recompute, or material overrides
+ * (those would break the normal map / PBR response).
  */
 let preparedScene: THREE.Object3D | null = null;
 function prepareScene(scene: THREE.Object3D): THREE.Object3D {
@@ -34,27 +28,9 @@ function prepareScene(scene: THREE.Object3D): THREE.Object3D {
     const base = scene.clone(true);
     base.traverse((o) => {
         const mesh = o as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        mesh.castShadow = false;
-        mesh.receiveShadow = false;
-
-        // Weld duplicated verts, then smooth normals below the crease angle.
-        let geo = mesh.geometry;
-        try {
-            geo = mergeVertices(geo);
-        } catch {
-            /* some attribute layouts can't be merged — fall back to as-is */
-        }
-        geo = toCreasedNormals(geo, CREASE_ANGLE);
-        mesh.geometry = geo;
-
-        const mat = mesh.material as THREE.MeshStandardMaterial;
-        if (mat && mat.isMeshStandardMaterial) {
-            mat.metalness = 0.35;
-            mat.roughness = 0.4;
-            mat.envMapIntensity = 1.1;
-            mat.flatShading = false;
-            mat.needsUpdate = true;
+        if (mesh.isMesh) {
+            mesh.castShadow = false;
+            mesh.receiveShadow = false;
         }
     });
     preparedScene = base;
@@ -71,34 +47,37 @@ export type GuitarProps = {
 /**
  * The electric-guitar 3D model — drop-in replacement for the old <SodaCan>.
  *
- * Each instance clones the (once-)prepared scene so multiple guitars (e.g. the
- * finale pair) don't share one object in the scene graph. The clone is then
- * NORMALIZED — recentered to the origin and uniformly scaled to a fixed
- * TARGET_HEIGHT — and wrapped in a group, so the per-scene `scale`/`rotation`
- * props behave the same regardless of the source model's native dimensions
- * (swap the GLB and the scenes keep their tuning).
+ * Each instance clones the (once-)prepared scene, applies the upright BASE
+ * orientation, then NORMALIZES it — recentered to the origin and uniformly
+ * scaled to a fixed TARGET_HEIGHT — via nested groups so the per-scene
+ * `scale`/`rotation` props behave the same regardless of the source model's
+ * native size/orientation (swap the GLB and the scenes keep their tuning).
  */
 export function Guitar({ scale = 1, rotation = [0, 0, 0] }: GuitarProps) {
     const { scene } = useGLTF(MODEL);
     const model = useMemo(() => {
         const clone = prepareScene(scene).clone(true);
-
-        // Recenter to origin + scale to a fixed height.
+        clone.rotation.set(BASE_ROTATION[0], BASE_ROTATION[1], BASE_ROTATION[2]);
         clone.updateMatrixWorld(true);
+
+        // Measure the (rotated) bounds, then recenter + scale to a fixed height.
         const box = new THREE.Box3().setFromObject(clone);
         const size = new THREE.Vector3();
         const center = new THREE.Vector3();
         box.getSize(size);
         box.getCenter(center);
         const k = size.y > 0 ? TARGET_HEIGHT / size.y : 1;
-        clone.scale.setScalar(k);
-        clone.position.set(-center.x * k, -center.y * k, -center.z * k);
 
-        // Wrap so the scene-level scale/rotation apply cleanly on top of the
-        // normalization transform baked into the clone.
-        const group = new THREE.Group();
-        group.add(clone);
-        return group;
+        // Normalization group (scale + recenter) wraps the oriented clone…
+        const norm = new THREE.Group();
+        norm.add(clone);
+        norm.scale.setScalar(k);
+        norm.position.set(-center.x * k, -center.y * k, -center.z * k);
+
+        // …and an outer group takes the per-scene scale/rotation cleanly on top.
+        const outer = new THREE.Group();
+        outer.add(norm);
+        return outer;
     }, [scene]);
 
     return <primitive object={model} scale={scale} rotation={rotation} />;
