@@ -9,18 +9,18 @@ const MODEL = "/electric-guitar.glb";
 // the scene-level scales stay valid no matter what the source GLB's native size
 // is. 2.5 matches the height the scenes were originally tuned around.
 const TARGET_HEIGHT = 2.5;
-// This model's long axis is Z (it ships lying down), so rotate it upright
-// (Z → Y) with the NECK pointing up before normalizing.
-const BASE_ROTATION: [number, number, number] = [Math.PI / 2, 0, 0];
+// This model already ships upright (long axis = Y, neck up), so no base
+// re-orientation is needed before normalizing.
+const BASE_ROTATION: [number, number, number] = [0, 0, 0];
 
 useGLTF.preload(MODEL);
 
 /**
- * Prepare the source scene ONCE (cached across every instance): just disable
- * shadows. This is a high-poly model with authored PBR textures (baseColor /
- * normal / metallicRoughness + KHR_materials_specular), so it's rendered
- * AS-AUTHORED — no vertex welding, normal recompute, or material overrides
- * (those would break the normal map / PBR response).
+ * Prepare the source scene ONCE (cached across every instance): disable shadows
+ * and strip the baked ambient-occlusion. This is a high-poly model with authored
+ * PBR textures (baseColor / normal / metallicRoughness), rendered essentially
+ * AS-AUTHORED — no vertex welding or normal recompute (those would break the
+ * normal map) — the only tweak is removing the AO "shadow" so it reads evenly lit.
  */
 let preparedScene: THREE.Object3D | null = null;
 function prepareScene(scene: THREE.Object3D): THREE.Object3D {
@@ -28,9 +28,19 @@ function prepareScene(scene: THREE.Object3D): THREE.Object3D {
     const base = scene.clone(true);
     base.traverse((o) => {
         const mesh = o as THREE.Mesh;
-        if (mesh.isMesh) {
-            mesh.castShadow = false;
-            mesh.receiveShadow = false;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        // Remove the baked ambient-occlusion ("shadow") so the guitar reads
+        // evenly lit — keeps metalness/roughness (they share the same texture).
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of mats) {
+            const sm = m as THREE.MeshStandardMaterial;
+            if (sm && "aoMap" in sm) {
+                sm.aoMap = null;
+                sm.aoMapIntensity = 0;
+                sm.needsUpdate = true;
+            }
         }
     });
     preparedScene = base;
