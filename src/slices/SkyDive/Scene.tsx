@@ -142,8 +142,8 @@ export default function Scene({ sentence, flavor }: SkyDiveProps) {
 
     return (
         <group ref={groupRef}>
-            {/* Can */}
-            <group rotation={[0, 0, 0.5]}>
+            {/* Guitar — upright (no tilt); it spins around its own vertical axis */}
+            <group rotation={[0, 0, 0]}>
                 <FloatingCan
                     ref={canRef}
                     flavor={flavor}

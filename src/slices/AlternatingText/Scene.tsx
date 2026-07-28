@@ -39,28 +39,21 @@ export default function Scene({ }: Props) {
                 },
             });
 
-            // Smooth glide + tilt: the can stays on screen the whole time and
-            // glides side-to-side WITH the scroll — leaning into the direction of
-            // travel (z-tilt that peaks mid-glide and straightens) and settling
-            // with a slight turn toward the active block (y). Continuous & scrubbed,
-            // so there's no pop timing to mis-fire; it rests at each block, then
-            // glides across to the next.
+            // Smooth glide: the guitar stays UPRIGHT the whole time and glides
+            // side-to-side WITH the scroll, settling with a slight turn toward the
+            // active block (a rotation around its vertical axis only — no z-tilt,
+            // so it always stands straight). Continuous & scrubbed; it rests at
+            // each block, then glides across to the next.
             sections.forEach((_, index) => {
                 if (index === 0) return;
 
                 const isOdd = index % 2 !== 0;
                 const xPosition = isDesktop ? (isOdd ? -1 : 1) : 0;
                 const yLean = isDesktop ? (isOdd ? 0.4 : -0.4) : 0;
-                const tilt = isDesktop ? (isOdd ? 0.22 : -0.22) : 0;
 
                 scrollTl
                     .to(can.position, { x: xPosition, duration: 1, ease: "power2.inOut", delay: 0.5 })
-                    .to(can.rotation, { y: yLean, duration: 1, ease: "power2.inOut" }, "<")
-                    .to(
-                        can.rotation,
-                        { z: tilt, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: 1 },
-                        "<",
-                    );
+                    .to(can.rotation, { y: yLean, duration: 1, ease: "power2.inOut" }, "<");
             });
         },
         { dependencies: [isDesktop] },
