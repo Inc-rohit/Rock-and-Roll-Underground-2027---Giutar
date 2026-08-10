@@ -8,10 +8,17 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import FloatingCan from "@/components/FloatingCan";
+import { faceOnBias, guitarScaleFor } from "@/components/Guitar";
 import { SodaCanProps } from "@/components/SodaCan";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
+
+// This slice renders into the shared <ViewCanvas>, whose camera is fov 30 at the
+// r3f default z of 5 — a visible frame 2.68 world units tall. Fill ~58% of it:
+// the old hard-coded 0.85 made the guitar 2.13 units, and with floatIntensity 3
+// swinging it ±0.3 on top of that it clipped straight off the top of the frame.
+const GUITAR_SCALE = guitarScaleFor(30, 5, 0.58);
 
 type SkyDiveProps = {
     sentence: string | null;
@@ -57,12 +64,20 @@ export default function Scene({ sentence, flavor }: SkyDiveProps) {
             { ...getXYPositions(7), z: 2 },
         );
 
-        // Spinning can
-        gsap.to(canRef.current.rotation, {
-            y: Math.PI * 2,
-            duration: 1.7,
+        // Spinning guitar. The angle is driven through a proxy so faceOnBias can
+        // warp it: spun at a constant rate the guitar went edge-on — a 0.23-unit
+        // sliver, effectively invisible — twice every 1.7s. Slower now, and it
+        // dwells face-on between sweeps.
+        const spinTarget = canRef.current;
+        const spin = { a: 0 };
+        gsap.to(spin, {
+            a: Math.PI * 2,
+            duration: 3.2,
             repeat: -1,
             ease: "none",
+            onUpdate: () => {
+                spinTarget.rotation.y = faceOnBias(spin.a);
+            },
         });
 
         // Infinite cloud movement
@@ -148,7 +163,7 @@ export default function Scene({ sentence, flavor }: SkyDiveProps) {
                 <FloatingCan
                     ref={canRef}
                     flavor={flavor}
-                    scale={0.85}
+                    scale={GUITAR_SCALE}
                     rotationIntensity={0}
                     floatIntensity={3}
                     floatSpeed={3}

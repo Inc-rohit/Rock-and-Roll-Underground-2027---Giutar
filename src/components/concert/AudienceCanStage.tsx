@@ -5,7 +5,15 @@ import { Environment, Float } from "@react-three/drei";
 import { Suspense, useRef } from "react";
 import { Group } from "three";
 
-import { Guitar } from "@/components/Guitar";
+import { Guitar, faceOnBias, guitarScaleFor } from "@/components/Guitar";
+
+// Camera for this stage (kept next to the <Canvas> below — change both together).
+const FOV = 28;
+const CAM_Z = 6.5;
+// Fill ~2/3 of the frame height. At fov 28 / z 6.5 the visible frame is 3.24
+// world units tall, so the old hard-coded 1.2 made the guitar 3.0 units — 93%
+// of the frame — and the neck and body were clipped off the top and bottom.
+const GUITAR_SCALE = guitarScaleFor(FOV, CAM_Z, 0.66);
 
 /**
  * Module-level 3D transform state for the audience cans. The AudienceSection
@@ -58,10 +66,14 @@ function Cans() {
         apply(bOuter.current, audCan.b);
         // Each guitar rotates AT ITS OWN POINT: a gentle always-on spin around
         // its vertical axis + the scroll-driven amount (groupRotY, 0→2π over the
-        // finale). Mirrored directions for the pair.
-        spin.current += delta * 0.35;
-        if (aSpin.current) aSpin.current.rotation.y = spin.current + audCan.groupRotY;
-        if (bSpin.current) bSpin.current.rotation.y = -(spin.current + audCan.groupRotY);
+        // finale). Mirrored directions for the pair. The angle is warped by
+        // faceOnBias so the pair lingers face-on and sweeps quickly through the
+        // edge-on quarters, where a guitar is only 0.23 units thick and used to
+        // read as if it had vanished.
+        spin.current += delta * 0.22;
+        const angle = faceOnBias(spin.current + audCan.groupRotY);
+        if (aSpin.current) aSpin.current.rotation.y = angle;
+        if (bSpin.current) bSpin.current.rotation.y = -angle;
     });
 
     return (
@@ -69,14 +81,14 @@ function Cans() {
             <group ref={aOuter}>
                 <group ref={aSpin}>
                     <Float speed={1.4} rotationIntensity={0} floatIntensity={0.8}>
-                        <Guitar scale={1.2} />
+                        <Guitar scale={GUITAR_SCALE} />
                     </Float>
                 </group>
             </group>
             <group ref={bOuter}>
                 <group ref={bSpin}>
                     <Float speed={1.4} rotationIntensity={0} floatIntensity={0.8}>
-                        <Guitar scale={1.2} />
+                        <Guitar scale={GUITAR_SCALE} />
                     </Float>
                 </group>
             </group>
@@ -87,7 +99,7 @@ function Cans() {
 export default function AudienceCanStage() {
     return (
         <Canvas
-            camera={{ fov: 28, position: [0, 0, 6.5] }}
+            camera={{ fov: FOV, position: [0, 0, CAM_Z] }}
             gl={{ alpha: true, antialias: true }}
             dpr={[1, 2]}
         >

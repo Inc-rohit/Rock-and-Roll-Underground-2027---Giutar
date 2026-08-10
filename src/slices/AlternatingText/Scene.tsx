@@ -8,9 +8,16 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 
 import FloatingCan from "@/components/FloatingCan";
+import { guitarScaleFor } from "@/components/Guitar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+// Shared <ViewCanvas> camera: fov 30 at z 5 → a 2.68-unit-tall frame. This slice
+// already fit (the old 0.6 ≈ 56% of the frame); derived here so it stays correct
+// if the canvas camera is ever retuned. The guitar only turns ±0.4 rad here, so
+// it never reaches the edge-on angles and needs no faceOnBias.
+const GUITAR_SCALE = guitarScaleFor(30, 5, 0.56);
 
 type Props = object;
 
@@ -65,7 +72,7 @@ export default function Scene({ }: Props) {
             position-x={isDesktop ? 1 : 0}
             rotation-y={isDesktop ? -0.3 : 0}
         >
-            <FloatingCan flavor="monsterGreen" scale={0.6} />
+            <FloatingCan flavor="monsterGreen" scale={GUITAR_SCALE} />
             <Environment files={"/hdr/lobby.hdr"} environmentIntensity={1.5} />
         </group>
     );

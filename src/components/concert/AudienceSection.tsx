@@ -281,12 +281,19 @@ export default function AudienceSection() {
                         { autoAlpha: 1, scale: 1, duration: 0.7, ease: "power2.out" },
                         ">-0.9",
                     );
-                    tl.fromTo(
-                        eyebrow,
-                        { autoAlpha: 0, yPercent: -45 },
-                        { autoAlpha: 1, yPercent: 0, duration: 0.5, ease: "power3.out" },
-                        "<",
-                    );
+                    // NOTE: this panel has no eyebrow — the "Fueled by Monster"
+                    // kicker was removed, so the title is the only copy here.
+                    // `sub` still starts relative to the glow tween above, which
+                    // is where the eyebrow used to start, so the timing is
+                    // unchanged.
+                    if (eyebrow) {
+                        tl.fromTo(
+                            eyebrow,
+                            { autoAlpha: 0, yPercent: -45 },
+                            { autoAlpha: 1, yPercent: 0, duration: 0.5, ease: "power3.out" },
+                            "<",
+                        );
+                    }
                     tl.fromTo(
                         sub,
                         { autoAlpha: 0, scale: 0.75 },
@@ -516,14 +523,7 @@ export default function AudienceSection() {
                             }}
                         />
                         <div className="relative z-10">
-                            <div className="aud-eyebrow flex items-center justify-center gap-4">
-                                <span className="h-px w-8 bg-[#f4c020]/70 md:w-20" />
-                                <span className="[font-family:var(--font-bebas)] uppercase tracking-[0.3em] text-[#f4c020] [text-shadow:0_2px_10px_rgba(0,0,0,0.8)] text-[clamp(0.9rem,2.4vw,1.5rem)]">
-                                    Fueled by Monster
-                                </span>
-                                <span className="h-px w-8 bg-[#f4c020]/70 md:w-20" />
-                            </div>
-                            <p className="aud-sub mt-4 [font-family:var(--font-bebas)] uppercase leading-[0.8] tracking-[0.01em] text-balance text-[#f6c62a] [filter:drop-shadow(0_0_34px_rgba(244,192,32,0.5))_drop-shadow(0_4px_16px_rgba(0,0,0,0.8))] text-[clamp(2.75rem,9vw,7rem)]">
+                            <p className="aud-sub [font-family:var(--font-bebas)] uppercase leading-[0.8] tracking-[0.01em] text-balance text-[#f6c62a] [filter:drop-shadow(0_0_34px_rgba(244,192,32,0.5))_drop-shadow(0_4px_16px_rgba(0,0,0,0.8))] text-[clamp(2.75rem,9vw,7rem)]">
                                 Sponsor
                                 <br />
                                 Benefits
